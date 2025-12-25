@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import (QMainWindow, QVBoxLayout, QHBoxLayout, QWidget,
 from ui.canvas import MplCanvas
 from core.data_generator import TerrainGenerator
 from core.file_handler import FileHandler
+from core.data_analyzer import TerrainAnalyzer
 import numpy as np
 
 class MainWindow(QMainWindow):
@@ -66,9 +67,32 @@ class MainWindow(QMainWindow):
         self.combo_cmap.currentTextChanged.connect(self.update_plot)
         self.control_layout.addWidget(self.combo_cmap)
         
+        self.control_layout.addWidget(QLabel("着色模式:"))
+        self.combo_color_mode = QComboBox()
+        self.combo_color_mode.addItems(['高度 (Height)', '坡度 (Slope)'])
+        self.combo_color_mode.currentTextChanged.connect(self.update_plot)
+        self.control_layout.addWidget(self.combo_color_mode)
+
         self.check_wireframe = QtWidgets.QCheckBox("显示网格 (Wireframe)")
         self.check_wireframe.stateChanged.connect(self.update_plot)
         self.control_layout.addWidget(self.check_wireframe)
+
+        self.check_contours = QtWidgets.QCheckBox("显示等高线 (Contours)")
+        self.check_contours.stateChanged.connect(self.update_plot)
+        self.control_layout.addWidget(self.check_contours)
+        
+        self.control_layout.addSpacing(20)
+
+        # --- 数据统计区 ---
+        self.add_section_label("地形统计")
+        self.lbl_max_height = QLabel("最高点: N/A")
+        self.control_layout.addWidget(self.lbl_max_height)
+        self.lbl_min_height = QLabel("最低点: N/A")
+        self.control_layout.addWidget(self.lbl_min_height)
+        self.lbl_mean_height = QLabel("平均高度: N/A")
+        self.control_layout.addWidget(self.lbl_mean_height)
+        self.lbl_avg_slope = QLabel("平均坡度: N/A")
+        self.control_layout.addWidget(self.lbl_avg_slope)
         
         self.control_layout.addSpacing(20)
         
@@ -144,8 +168,31 @@ class MainWindow(QMainWindow):
         
         cmap = self.combo_cmap.currentText()
         wireframe = self.check_wireframe.isChecked()
+        contours = self.check_contours.isChecked()
+        color_mode = self.combo_color_mode.currentText()
         
-        self.canvas.plot_terrain(self.X, self.Y, self.Z, cmap=cmap, wireframe=wireframe)
+        color_data = None
+        if '坡度' in color_mode:
+            # 计算坡度用于着色
+            color_data = TerrainAnalyzer.calculate_slope(self.Z)
+            # 坡度通常用 degrees 显示更直观，这里转换为度
+            color_data = np.degrees(color_data)
+        
+        self.canvas.plot_terrain(self.X, self.Y, self.Z, cmap=cmap, wireframe=wireframe, contours=contours, color_data=color_data)
+        self.update_stats()
+
+    def update_stats(self):
+        if self.Z is None:
+            return
+            
+        stats = TerrainAnalyzer.get_statistics(self.Z)
+        avg_slope = TerrainAnalyzer.get_average_slope(self.Z)
+        
+        if stats:
+            self.lbl_max_height.setText(f"最高点: {stats['max_height']:.2f}")
+            self.lbl_min_height.setText(f"最低点: {stats['min_height']:.2f}")
+            self.lbl_mean_height.setText(f"平均高度: {stats['mean_height']:.2f}")
+            self.lbl_avg_slope.setText(f"平均坡度: {avg_slope:.2f}°")
 
     def update_view(self):
         elev = self.slider_elev.value()

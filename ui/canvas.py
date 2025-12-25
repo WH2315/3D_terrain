@@ -4,6 +4,7 @@ matplotlib.use('Qt5Agg')
 from PyQt5 import QtWidgets
 from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
+from matplotlib import cm, colors
 from mpl_toolkits.mplot3d import Axes3D
 
 class MplCanvas(FigureCanvas):
@@ -22,17 +23,30 @@ class MplCanvas(FigureCanvas):
         self.axes.set_zlabel('Height')
         self.axes.mouse_init()  # 启用鼠标交互（旋转、缩放）
 
-    def plot_terrain(self, X, Y, Z, cmap='viridis', wireframe=False):
+    def plot_terrain(self, X, Y, Z, cmap='viridis', wireframe=False, contours=False, color_data=None):
         """
         绘制地形
+        :param color_data: 用于着色的数据（例如坡度），如果为 None 则使用 Z 高度着色
         """
         self.axes.clear()
         
         if wireframe:
             self.axes.plot_wireframe(X, Y, Z, rstride=2, cstride=2, cmap=cmap)
         else:
-            surf = self.axes.plot_surface(X, Y, Z, cmap=cmap, linewidth=0, antialiased=False)
-            # 注意：如果需要 colorbar，需要在外部管理，或者在这里添加逻辑避免重复添加
+            if color_data is not None:
+                # 如果提供了自定义着色数据（如坡度）
+                norm = colors.Normalize(vmin=color_data.min(), vmax=color_data.max())
+                m = cm.ScalarMappable(norm=norm, cmap=cmap)
+                fcolors = m.to_rgba(color_data)
+                self.axes.plot_surface(X, Y, Z, facecolors=fcolors, linewidth=0, antialiased=False, shade=False)
+            else:
+                # 默认使用 Z 高度着色
+                self.axes.plot_surface(X, Y, Z, cmap=cmap, linewidth=0, antialiased=False)
+            
+        if contours:
+            # 在 Z 轴底部绘制等高线
+            offset = Z.min()
+            self.axes.contour(X, Y, Z, zdir='z', offset=offset, cmap=cmap)
         
         self.axes.set_xlabel('X')
         self.axes.set_ylabel('Y')
