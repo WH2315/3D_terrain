@@ -51,6 +51,10 @@ class MainWindow(QMainWindow):
         self.btn_load = QPushButton("加载数据 (.npz)")
         self.btn_load.clicked.connect(self.load_data)
         self.control_layout.addWidget(self.btn_load)
+
+        self.btn_import = QPushButton("导入图像/文本 (DEM)")
+        self.btn_import.clicked.connect(self.import_data)
+        self.control_layout.addWidget(self.btn_import)
         
         self.btn_save = QPushButton("保存当前数据")
         self.btn_save.clicked.connect(self.save_data)
@@ -149,6 +153,24 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "成功", msg)
             else:
                 QMessageBox.warning(self, "错误", msg)
+
+    def import_data(self):
+        fname, _ = QFileDialog.getOpenFileName(self, '导入 DEM 数据', './data', 
+                                               "Images (*.png *.jpg *.jpeg *.bmp);;Text Files (*.txt *.csv)")
+        if not fname:
+            return
+            
+        if fname.lower().endswith(('.png', '.jpg', '.jpeg', '.bmp')):
+            X, Y, Z, msg = FileHandler.import_from_image(fname)
+        else:
+            X, Y, Z, msg = FileHandler.import_from_text(fname)
+            
+        if X is not None:
+            self.X, self.Y, self.Z = X, Y, Z
+            self.update_plot()
+            QMessageBox.information(self, "成功", msg)
+        else:
+            QMessageBox.warning(self, "错误", msg)
 
     def save_data(self):
         if self.X is None:
